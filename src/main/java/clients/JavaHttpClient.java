@@ -54,11 +54,7 @@ public class JavaHttpClient {
     }
 
     if (StringUtils.isNotNullEmptyOrWhitespace(jsonContent)) {
-      switch (httpVerb) {
-        case POST -> builder.POST(BodyPublishers.ofString(jsonContent));
-        case PUT -> builder.PUT(BodyPublishers.ofString(jsonContent));
-        default -> throw new IllegalStateException("Unexpected value: " + httpVerb);
-      }
+      builder.method(httpVerb.toString(), BodyPublishers.ofString(jsonContent));
     }
 
     var request = builder.build();
