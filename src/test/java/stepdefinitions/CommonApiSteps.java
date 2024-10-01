@@ -3,11 +3,10 @@ package stepdefinitions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import clients.PlaywrightHttpClient;
+import clients.JavaHttpClient;
 import com.google.gson.JsonObject;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
-import com.microsoft.playwright.APIResponse;
 import enums.HttpVerb;
 import enums.JsonPathOperation;
 import errors.ConfigurationError;
@@ -15,6 +14,8 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -35,13 +36,13 @@ import utils.StepDefinitionUtils;
 //@ScenarioScoped
 public class CommonApiSteps {
 
-  private final PlaywrightHttpClient playwrightHttpClient;
-  private APIResponse apiResponse;
+  private final JavaHttpClient httpClient;
+  private HttpResponse<String> apiResponse;
   private Map<String, String> headers;
   private Object content;
 
-  public CommonApiSteps(PlaywrightHttpClient playwrightHttpClient) {
-    this.playwrightHttpClient = playwrightHttpClient;
+  public CommonApiSteps(JavaHttpClient httpClient) {
+    this.httpClient = httpClient;
   }
 
   @Given("A request body of {string} with JSON Paths")
@@ -64,7 +65,7 @@ public class CommonApiSteps {
   }
 
   @Given("I apply JSON Path transformations")
-  public void transformExistingBody(List<List<ResolvedString>> dataRows) throws IOException {
+  public void transformExistingBody(List<List<ResolvedString>> dataRows) {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 3,
         new String[]{"field", "value", "operation"});
 
@@ -83,7 +84,7 @@ public class CommonApiSteps {
   public void performHttpRequestWithParams(
       HttpVerb httpVerb,
       String route,
-      List<List<String>> dataRows) {
+      List<List<String>> dataRows) throws URISyntaxException, IOException, InterruptedException {
     StepDefinitionUtils.validateDatatable(dataRows, 2, new String[]{"header key", "header value"});
 
     var queryParams = dataRows
@@ -94,81 +95,17 @@ public class CommonApiSteps {
   }
 
   @When("I perform a HTTP {httpVerb} for route {string}")
-  public void performHttpRequest(HttpVerb httpVerb, String route) {
+  public void performHttpRequest(HttpVerb httpVerb, String route)
+      throws URISyntaxException, IOException, InterruptedException {
     this.apiResponse = send(httpVerb, route, null);
   }
-
-//  @When("I perform a HTTP {httpVerb} for route {string}, until it returns a {int} Response code")
-//  public void performHttpRequestUntilStatusCode(
-//      HttpVerb httpVerb,
-//      String route,
-//      int expectedStatusCode) {
-//    var timeout = ConfigurationManager.get().configuration()
-//        .asInteger(Configuration.API_RETRY_LOOP_TIMEOUT);
-//
-//    var request = client.buildRequest(baseRouteThreadLocal.get(), headers.get());
-//    var response = client.sendUntil(
-//        httpVerb,
-//        route,
-//        request,
-//        JsonSerializer.toJson(ScenarioContext.API_REQUEST.get(Object.class)),
-//        null,
-//        expectedStatusCode,
-//        timeout,
-//        10);
-//
-//    persistResponse(response);
-//  }
-
-//  /**
-//   * Loops until the expected response code and JSON body match the expected.
-//   */
-//  @When("I perform a HTTP {httpVerb} for route {string}, "
-//      + "until it returns a {int} Response code and JSON:")
-//  public void performHttpRequestUntilStatusCodeAndBody(
-//      HttpVerb httpVerb,
-//      String route,
-//      int expectedStatusCode,
-//      List<List<String>> dataRows) {
-//    var timeoutMs = ConfigurationManager.get().configuration()
-//        .asInteger(Configuration.API_RETRY_LOOP_TIMEOUT);
-//    var request = client.buildRequest(baseRouteThreadLocal.get(), headers.get());
-//
-//    var httpResponse = TimeLimit.of(Duration.ofMillis(timeoutMs))
-//        .poll(APIResponse.class, Duration.ofMillis(timeoutMs / 10),
-//            () -> {
-//              var response = client.send(
-//                  httpVerb,
-//                  route,
-//                  request,
-//                  JsonSerializer.toJson(
-//                      ScenarioContext.API_REQUEST.get(Object.class)),
-//                  null);
-//
-//              if (response.status() == expectedStatusCode) {
-//                var document = JsonPathUtils.parse(response.text());
-//                var actual = document.read(dataRows.getFirst().getFirst());
-//
-//                if (actual != null && actual.equals(dataRows.getFirst().get(1))) {
-//                  return response;
-//                }
-//              }
-//
-//              return null;
-//            },
-//            () -> new DataNotFoundException(
-//                "API did not returned either expected response code %s or expected data".formatted(
-//                    expectedStatusCode)));
-//
-//    persistResponse(httpResponse);
-//  }
 
   @Then("The http response contains JSON Paths")
   public void theHttpResponseContainsJsonPaths(List<List<ResolvedString>> dataRows) {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 2, new String[]{"field", "value"});
-    var contentType = this.apiResponse.headers().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
-    if (contentType.contains("application/json")) {
-      var document = JsonPath.parse(this.apiResponse.text());
+    var contentType = this.apiResponse.headers().map().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
+    if (contentType.stream().anyMatch(h -> h.contains("application/json"))) {
+      var document = JsonPath.parse(this.apiResponse.body());
       for (var row : dataRows) {
         var field = document.read(row.get(0).getValue());
         if (field instanceof Double) {
@@ -179,7 +116,7 @@ public class CommonApiSteps {
       }
     } else {
       FileLogger.instance().get().severe(
-          String.format("Response was not in JSON format: %s", this.apiResponse.text()));
+          String.format("Response was not in JSON format: %s", this.apiResponse.body()));
       throw new ConfigurationError("Response was not in JSON format");
 
     }
@@ -195,7 +132,7 @@ public class CommonApiSteps {
 
   @Then("The Http Response code is {int}")
   public void httpResponseCodeIs(int httpResponseCode) {
-    var actual = this.apiResponse.status();
+    var actual = this.apiResponse.statusCode();
     assertEquals(
         httpResponseCode,
         actual,
@@ -203,7 +140,7 @@ public class CommonApiSteps {
             "The HTTP Status Code %s does not match expected %s.  HTTP Response Body: %s",
             httpResponseCode,
             actual,
-            this.apiResponse.text()));
+            this.apiResponse.body()));
   }
 
   @Then("The http response contains array with JSON Path {resolvedString} containing values")
@@ -211,7 +148,7 @@ public class CommonApiSteps {
       ResolvedString jsonPath,
       List<List<ResolvedString>> dataRows) {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 1, new String[]{"JSON Path"});
-    var document = JsonPathUtils.parse(this.apiResponse.text());
+    var document = JsonPathUtils.parse(this.apiResponse.body());
 
     var array = (JSONArray) JsonPathUtils.read(document, jsonPath.getValue());
     for (var row : dataRows) {
@@ -233,11 +170,12 @@ public class CommonApiSteps {
             JsonSerializer.prettyPrint(JsonSerializer.toJson(this.content), true)));
   }
 
-  private APIResponse send(
+  private HttpResponse<String> send(
       HttpVerb httpVerb,
       String route,
-      Map<String, String> queryParams) {
-    return playwrightHttpClient.send(
+      Map<String, String> queryParams)
+      throws URISyntaxException, IOException, InterruptedException {
+    return httpClient.send(
         httpVerb,
         route,
         JsonSerializer.toJson(this.content),
