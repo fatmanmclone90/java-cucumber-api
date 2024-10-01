@@ -1,5 +1,11 @@
 # Java Cucumber API Testing
 
+Repo contains 3 implementations of Cucumber API testing using:
+
+- Playwright
+- HTTP Client
+- Rest Assured
+
 ## Creation
 
 ```CMD
