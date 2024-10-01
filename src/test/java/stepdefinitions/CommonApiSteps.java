@@ -105,11 +105,14 @@ public class CommonApiSteps {
     var contentType = this.apiResponse.headers().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
     if (contentType.getValue().contains("application/json")) {
       //TODO: Look at rest assured in built assertions
+
       var document = JsonPath.parse(this.apiResponse.getBody().prettyPrint());
       for (var row : dataRows) {
-        var field = document.read(row.get(0).getValue());
+        var field = this.apiResponse.getBody().jsonPath().get(row.getFirst().getValue());
         if (field instanceof Double) {
-          assertEquals(Double.parseDouble(row.get(1).getValue()), (Double) field);
+          assertEquals(Double.parseDouble(row.get(1).getValue()), field);
+        } else if (field instanceof Boolean) {
+          assertEquals(Boolean.parseBoolean((row.get(1).getValue())), field);
         } else {
           assertEquals(row.get(1).getValue(), field.toString());
         }

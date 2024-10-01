@@ -178,7 +178,7 @@ public class JsonPathUtils {
       String jsonPath,
       Object value) {
     var jsonPathNodes = jsonPath.split("\\.");
-    for (var i = 2; i <= jsonPathNodes.length; i++) {
+    for (var i = 1; i <= jsonPathNodes.length; i++) {
       if (i == jsonPathNodes.length) {
         var key = jsonPathNodes[jsonPathNodes.length - 1];
         put(
@@ -223,6 +223,10 @@ public class JsonPathUtils {
       String parentPath,
       String key,
       Object value) {
+    if (StringUtils.isNullEmptyOrWhitespace(parentPath)) {
+      parentPath = ROOT;
+    }
+
     if (!ROOT.equals(parentPath) && document.read(parentPath) instanceof Map) {
       HashMap<String, Object> existing = new HashMap<>(document.read(parentPath));
       existing.put(key, value);

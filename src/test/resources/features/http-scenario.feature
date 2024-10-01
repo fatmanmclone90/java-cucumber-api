@@ -23,15 +23,15 @@ Feature: Backend test examples
     Then I perform a HTTP POST for route "base/route"
     Then The Http Response code is 200
     And The http response contains JSON Paths
-      | $.success | true |
+      | success | true |
 
   Scenario: Test 2
 
     Given A request body of "example.json" with JSON Paths
-      | $.currency                                      | USD                           | set            |
-      | $.customer.customerEzId                         | ${Configuration:API_BASE_URL} | set            |
-      | $.transactions                                  |                               | add_array_item |
-      | $.transactions[0].transactionDetails.sale.price | 5.00                          | set            |
+      | currency                                      | USD                           | set            |
+      | customer.customerEzId                         | ${Configuration:API_BASE_URL} | set            |
+      | transactions                                  |                               | add_array_item |
+      | transactions[0].transactionDetails.sale.price | 5.00                          | set            |
     And I set JSON at JSON Path "$.foo"
     """json
         {
@@ -49,5 +49,5 @@ Feature: Backend test examples
     Then I perform a HTTP POST for route "base/route"
     Then The Http Response code is 200
     And The http response contains JSON Paths
-      | $.success | true |
+      | success | true |
 
