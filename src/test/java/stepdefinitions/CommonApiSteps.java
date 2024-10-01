@@ -95,8 +95,7 @@ public class CommonApiSteps {
   }
 
   @When("I perform a HTTP {httpVerb} for route {string}")
-  public void performHttpRequest(HttpVerb httpVerb, String route)
-      throws URISyntaxException, IOException, InterruptedException {
+  public void performHttpRequest(HttpVerb httpVerb, String route) {
     this.apiResponse = send(httpVerb, route, null);
   }
 
@@ -105,7 +104,8 @@ public class CommonApiSteps {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 2, new String[]{"field", "value"});
     var contentType = this.apiResponse.headers().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
     if (contentType.getValue().contains("application/json")) {
-      var document = JsonPath.parse(this.apiResponse.body());
+      //TODO: Look at rest assured in built assertions
+      var document = JsonPath.parse(this.apiResponse.getBody().prettyPrint());
       for (var row : dataRows) {
         var field = document.read(row.get(0).getValue());
         if (field instanceof Double) {
