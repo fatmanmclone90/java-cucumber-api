@@ -1,7 +1,7 @@
 Feature: Backend test examples
 
   Background:
-    And I add HTTP headers
+    Given I add HTTP headers
       | application-name | EZSystemMS |
 
   Scenario: Test 1

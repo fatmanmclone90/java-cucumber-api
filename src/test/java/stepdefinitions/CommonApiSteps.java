@@ -226,5 +226,4 @@ public class CommonApiSteps {
     this.content = document.json();
   }
 
-
 }

@@ -10,6 +10,7 @@ import io.restassured.specification.RequestSpecification;
 import java.util.Map;
 import managers.ConfigurationManager;
 import org.apache.hc.core5.http.HttpHeaders;
+import utils.StringUtils;
 
 public class RestAssuredClient {
 
@@ -39,15 +40,39 @@ public class RestAssuredClient {
       String jsonContent,
       Map<String, String> queryParams,
       Map<String, String> additionalHeaders) {
-    var response = given().spec(requestSpec)
-        .when()
-        .headers(additionalHeaders)
-        .queryParams(queryParams)
-        .body(jsonContent)
-        .get(urlFragment)
-        .then()
-        .extract()
-        .response();
+    var when = given().spec(requestSpec)
+        .when();
+
+    if (additionalHeaders != null) {
+      when.headers(additionalHeaders);
+    }
+
+    if (queryParams != null) {
+      when.queryParams(queryParams);
+    }
+
+    if (StringUtils.isNotNullEmptyOrWhitespace(jsonContent)) {
+      when.body(jsonContent);
+    }
+
+    var response = switch (httpVerb) {
+      case GET -> when
+          .get(urlFragment)
+          .then()
+          .extract()
+          .response();
+      case POST -> when
+          .post(urlFragment)
+          .then()
+          .extract()
+          .response();
+      case PUT -> when
+          .put(urlFragment)
+          .then()
+          .extract()
+          .response();
+      default -> throw new IllegalStateException("Unexpected value: " + httpVerb);
+    };
 
     //TODO: Build HAR
     //TODO: Logging filters
