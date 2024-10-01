@@ -3,7 +3,7 @@ package stepdefinitions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import clients.JavaHttpClient;
+import clients.RestAssuredClient;
 import com.google.gson.JsonObject;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -13,9 +13,9 @@ import errors.ConfigurationError;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import io.restassured.response.Response;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -36,12 +36,12 @@ import utils.StepDefinitionUtils;
 //@ScenarioScoped
 public class CommonApiSteps {
 
-  private final JavaHttpClient httpClient;
-  private HttpResponse<String> apiResponse;
+  private final RestAssuredClient httpClient;
+  private Response apiResponse;
   private Map<String, String> headers;
   private Object content;
 
-  public CommonApiSteps(JavaHttpClient httpClient) {
+  public CommonApiSteps(RestAssuredClient httpClient) {
     this.httpClient = httpClient;
   }
 
@@ -103,8 +103,8 @@ public class CommonApiSteps {
   @Then("The http response contains JSON Paths")
   public void theHttpResponseContainsJsonPaths(List<List<ResolvedString>> dataRows) {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 2, new String[]{"field", "value"});
-    var contentType = this.apiResponse.headers().map().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
-    if (contentType.stream().anyMatch(h -> h.contains("application/json"))) {
+    var contentType = this.apiResponse.headers().get(HttpHeaders.CONTENT_TYPE.toLowerCase());
+    if (contentType.getValue().contains("application/json")) {
       var document = JsonPath.parse(this.apiResponse.body());
       for (var row : dataRows) {
         var field = document.read(row.get(0).getValue());
@@ -148,7 +148,7 @@ public class CommonApiSteps {
       ResolvedString jsonPath,
       List<List<ResolvedString>> dataRows) {
     StepDefinitionUtils.validateResolvedStrings(dataRows, 1, new String[]{"JSON Path"});
-    var document = JsonPathUtils.parse(this.apiResponse.body());
+    var document = JsonPathUtils.parse(this.apiResponse.body().toString());
 
     var array = (JSONArray) JsonPathUtils.read(document, jsonPath.getValue());
     for (var row : dataRows) {
@@ -170,11 +170,10 @@ public class CommonApiSteps {
             JsonSerializer.prettyPrint(JsonSerializer.toJson(this.content), true)));
   }
 
-  private HttpResponse<String> send(
+  private Response send(
       HttpVerb httpVerb,
       String route,
-      Map<String, String> queryParams)
-      throws URISyntaxException, IOException, InterruptedException {
+      Map<String, String> queryParams) {
     return httpClient.send(
         httpVerb,
         route,
